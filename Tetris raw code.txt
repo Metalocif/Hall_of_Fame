@@ -1,0 +1,843 @@
+Public Const w = 10
+Public Const h = 20
+ 
+Public piece As Range
+Public board As Range
+Public lineCounter As Range
+ 
+Public nextPiece As Range
+ 
+ 
+Public piece2() As Boolean
+ 
+Public running As Boolean
+Public falling As Boolean
+ 
+Public canMove As Boolean
+ 
+Public isPaused As Boolean
+ 
+Public queue(1 To 2)
+ 
+Public RunWhen As Double
+Public Const cRunIntervalSeconds = 1
+Public Const cRunWhat = "Update"
+ 
+ Private Sub pause()
+    If (isPaused = False) Then
+        StopTimer
+        isPaused = True
+    Else
+        StartTimer
+        isPaused = False
+       
+    End If
+   
+End Sub
+   
+
+
+Private Sub toggle()
+    If (running = False) Then
+        begin
+    Else
+        running = False
+        StopTimer
+    End If
+   
+End Sub
+Private Sub reset()
+    MSG1 = MsgBox("Recommencer?", vbYesNo, "Recommencer?")
+
+    If MSG1 = vbNo Then
+        Exit Sub
+    End If
+
+    running = False
+    StopTimer
+    Columns("A:S").Delete Shift:=xlToLeft
+    Call setup
+    Set nextPiece = Range(Cells(1, w + 1), Cells(2, w + 4))
+
+End Sub
+ 
+
+ 
+Private Sub StartTimer()
+   
+    RunWhen = Now + TimeSerial(0, 0, cRunIntervalSeconds)
+    Application.OnTime EarliestTime:=RunWhen, Procedure:=cRunWhat, _
+        Schedule:=True
+End Sub
+ 
+Private Sub StopTimer()
+    On Error Resume Next
+    Application.OnTime EarliestTime:=RunWhen, Procedure:=cRunWhat, _
+        Schedule:=False
+End Sub
+
+Private Sub begin()
+   
+   
+    Set nextPiece = Range(Cells(1, w + 1), Cells(2, w + 4))
+   
+    Set board = Range(Cells(1, 1), Cells(h, w))
+    Set lineCounter = Cells(1, w + 5)
+   
+    Cells.Interior.ColorIndex = -4142
+    With board.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With board.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+   
+    lineCounter.Value = 0
+   
+    queue(1) = WorksheetFunction.RandBetween(1, 7)
+    queue(2) = WorksheetFunction.RandBetween(1, 7)
+   
+    running = True
+    falling = True
+   
+    isPaused = False
+   
+    canMove = True
+    getPiece
+    StartTimer
+   
+End Sub
+ 
+Function transpose(arr() As Boolean)
+ 
+    y = UBound(arr, 1)
+    x = UBound(arr, 2)
+   
+    ReDim tempArr(1 To x, 1 To y) As Boolean
+   
+    For a = 1 To x
+        For b = 1 To y
+            tempArr(a, b) = arr(b, a)
+        Next b
+    Next a
+   
+    transpose = tempArr
+   
+   
+End Function
+
+Private Sub Update()
+   
+    Cells(1, 1).Value = (Cells(1, 1).Value + 1) Mod 100
+   
+    r = piece.Resize(1, 1).Row + piece.Rows.Count - 1
+    If (r >= h) Then
+        checkForLines
+        If (canMove = True) Then
+            getPiece
+        End If
+       
+       
+    End If
+   
+   
+    canMove = True
+   
+   
+    nextTopLeftX = piece.Resize(1, 1).Column
+    nextTopLeftY = piece.Resize(1, 1).Row + 1
+    pieceW = piece.Columns.Count
+    pieceH = piece.Rows.Count
+   
+    flag = False
+   
+    For i = 1 To piece.Columns.Count
+        For j = 1 To piece.Rows.Count
+            If (piece2(j, i) = True) Then
+                piece.Cells(j, i).Interior.ColorIndex = -4142
+            End If
+        Next j
+    Next i
+   
+   
+    For i = 0 To pieceW - 1
+        For j = 0 To pieceH - 1
+            If (piece2(j + 1, i + 1) = True And Cells(nextTopLeftY, nextTopLeftX).Offset(j, i).Interior.ColorIndex = 1) Then
+                flag = True
+            End If
+        Next j
+    Next i
+   
+    If (flag = True) Then
+        For a = 1 To piece.Columns.Count
+            For b = 1 To piece.Rows.Count
+                If (piece2(b, a) = True) Then
+                    piece.Cells(b, a).Interior.ColorIndex = 1
+                End If
+            Next b
+        Next a
+        checkForLines
+       
+        getPiece
+    End If
+   
+   
+   
+    
+    If (flag = False) Then
+        If (piece.Resize(1, 1).Row + piece.Rows.Count <= h) Then
+            Set piece = piece.Offset(1, 0)
+            For a = 1 To piece.Columns.Count
+                For b = 1 To piece.Rows.Count
+                    If (piece2(b, a) = True) Then
+                        piece.Cells(b, a).Interior.ColorIndex = 1
+                    End If
+                Next b
+            Next a
+           
+        End If
+    End If
+   
+   
+   
+   
+ 
+    StartTimer
+   
+End Sub
+ 
+
+Private Sub moveRight()
+
+    If (running = False) Then
+        Exit Sub
+    End If
+ 
+    
+   
+   
+    nextTopLeftX = piece.Resize(1, 1).Column + 1
+    nextTopLeftY = piece.Resize(1, 1).Row
+    pieceW = piece.Columns.Count
+    pieceH = piece.Rows.Count
+    flag = False
+   
+    For i = 1 To piece.Columns.Count
+        For j = 1 To piece.Rows.Count
+            If (piece2(j, i) = True) Then
+                piece.Cells(j, i).Interior.ColorIndex = -4142
+            End If
+        Next j
+    Next i
+   
+    If ((nextTopLeftX + pieceW - 1) > w) Then
+        flag = True
+    Else
+   
+    For i = 0 To pieceW - 1
+        For j = 0 To pieceH - 1
+            If (piece2(j + 1, i + 1) = True And Cells(nextTopLeftY, nextTopLeftX).Offset(j, i).Interior.ColorIndex = 1) Then
+                flag = True
+            End If
+        Next j
+    Next i
+    End If
+   
+   
+    If (flag = True) Then
+        For a = 1 To piece.Columns.Count
+            For b = 1 To piece.Rows.Count
+                If (piece2(b, a) = True) Then
+                    piece.Cells(b, a).Interior.ColorIndex = 1
+                End If
+            Next b
+        Next a
+    Else
+   
+ 
+    c = piece.Resize(1, 1).Column + piece.Columns.Count - 1
+    
+   
+   
+    If (c < w) Then
+   
+   
+
+        For i = 1 To piece.Columns.Count
+            For j = 1 To piece.Rows.Count
+                If (piece2(j, i) = True) Then
+                    piece.Cells(j, i).Interior.ColorIndex = -4142
+                End If
+            Next j
+        Next i
+       
+        Set piece = piece.Offset(0, 1)
+       
+        y = UBound(piece2, 1)
+        x = UBound(piece2, 2)
+       
+        For a = 1 To x
+            For b = 1 To y
+                If (piece2(b, a) = True) Then
+                    piece.Cells(b, a).Interior.ColorIndex = 1
+                   
+                End If
+            Next b
+        Next a
+   
+    End If
+    End If
+   
+   
+   
+End Sub
+Private Sub getPiece(Optional n = -1)
+    If (n = -1) Then
+        n = queue(1)
+        queue(1) = queue(2)
+        queue(2) = WorksheetFunction.RandBetween(1, 7)
+       
+       
+
+    End If
+   
+    
+    If (n = 1) Then
+        Set piece = Range(Cells(1, 4), Cells(1, 7))
+        ReDim piece2(1 To 1, 1 To 4)
+        piece2(1, 1) = True
+        piece2(1, 2) = True
+        piece2(1, 3) = True
+        piece2(1, 4) = True
+    End If
+   
+    
+    If (n = 2) Then
+        Set piece = Range(Cells(1, 4), Cells(2, 6))
+        ReDim piece2(1 To 2, 1 To 3)
+        piece2(1, 2) = True
+        piece2(2, 1) = True
+        piece2(2, 2) = True
+        piece2(2, 3) = True
+    End If
+   
+    
+    If (n = 3) Then
+        Set piece = Range(Cells(1, 5), Cells(2, 6))
+        ReDim piece2(1 To 2, 1 To 2)
+        piece2(1, 1) = True
+        piece2(1, 2) = True
+        piece2(2, 1) = True
+        piece2(2, 2) = True
+    End If
+   
+    
+    If (n = 4) Then
+        Set piece = Range(Cells(1, 4), Cells(2, 6))
+        ReDim piece2(1 To 2, 1 To 3)
+        piece2(1, 1) = True
+        piece2(1, 2) = True
+        piece2(2, 2) = True
+        piece2(2, 3) = True
+    End If
+   
+    
+    If (n = 5) Then
+        Set piece = Range(Cells(1, 4), Cells(2, 6))
+        ReDim piece2(1 To 2, 1 To 3)
+        piece2(1, 2) = True
+        piece2(1, 3) = True
+        piece2(2, 1) = True
+        piece2(2, 2) = True
+    End If
+   
+    
+    If (n = 6) Then
+        Set piece = Range(Cells(1, 4), Cells(2, 6))
+        ReDim piece2(1 To 2, 1 To 3)
+        piece2(1, 1) = True
+        piece2(2, 1) = True
+        piece2(2, 2) = True
+        piece2(2, 3) = True
+    End If
+   
+    
+    If (n = 7) Then
+        Set piece = Range(Cells(1, 4), Cells(2, 6))
+        ReDim piece2(1 To 2, 1 To 3)
+        piece2(1, 3) = True
+        piece2(2, 1) = True
+        piece2(2, 2) = True
+        piece2(2, 3) = True
+    End If
+   
+    flag = False
+   
+    For a = 1 To piece.Columns.Count
+        For b = 1 To piece.Rows.Count
+            If (piece2(b, a) = True And piece.Cells(b, a).Interior.ColorIndex = 1) Then
+                flag = True
+            End If
+        Next b
+    Next a
+   
+    If (flag = False) Then
+   
+        For a = 1 To piece.Columns.Count
+            For b = 1 To piece.Rows.Count
+                If (piece2(b, a) = True) Then
+                    piece.Cells(b, a).Interior.ColorIndex = 1
+                End If
+            Next b
+        Next a
+    Else
+        StopTimer
+        If (lineCounter.Offset(0, 1).Value < lineCounter.Value) Then
+            lineCounter.Offset(0, 1).Value = lineCounter.Value
+        End If
+       
+        MsgBox ("git gud noob")
+       
+        End
+       
+    End If
+   
+   
+    falling = True
+   
+   
+End Sub
+ 
+Private Sub rotateLeft()
+    
+    
+    If (running = False) Then
+        Exit Sub
+    End If
+        
+   
+    If (piece.Resize(1, 1).Column + piece.Rows.Count - 1 <= w And piece.Resize(1, 1).Row + piece.Columns.Count - 1 <= h) Then
+   
+        For i = 1 To piece.Columns.Count
+            For j = 1 To piece.Rows.Count
+                If (piece2(j, i) = True) Then
+                    piece.Cells(j, i).Interior.ColorIndex = -4142
+                End If
+            Next j
+        Next i
+       
+        y = UBound(piece2, 1)
+        x = UBound(piece2, 2)
+       
+        topLeftX = piece.Resize(1, 1).Column
+        topLeftY = piece.Resize(1, 1).Row
+       
+       
+       
+        ReDim rotatedPiece(1 To x, 1 To y) As Boolean
+       
+        For bottom = y To 1 Step -1
+            ReDim layer(1 To 1, 1 To x) As Boolean
+            
+           
+            For a = 1 To x
+                layer(1, a) = piece2(bottom, a)
+                rotatedPiece(a, bottom) = piece2(bottom, x - a + 1)
+               
+            Next a
+        Next bottom
+       
+       
+       
+       
+       
+        flag = False
+       
+        For a = 1 To y
+            For b = 1 To x
+                If (board.Cells(topLeftY, topLeftX).Offset(b - 1, a - 1).Interior.ColorIndex = 1) Then
+                    If (rotatedPiece(b, a) = True) Then
+                        flag = True
+                    End If
+                   
+                End If
+            Next b
+        Next a
+       
+        If (flag = False) Then
+       
+            piece2 = rotatedPiece
+            Set piece = piece.Resize(x, y)
+           
+           
+            For a = 1 To x
+                For b = 1 To y
+                    If (piece2(a, b) = True) Then
+                        piece.Cells(a, b).Interior.ColorIndex = 1
+                       
+                    End If
+                Next b
+            Next a
+        Else
+       
+            For i = 1 To piece.Columns.Count
+                For j = 1 To piece.Rows.Count
+                    If (piece2(j, i) = True) Then
+                        piece.Cells(j, i).Interior.ColorIndex = 1
+                    End If
+                Next j
+            Next i
+        End If
+       
+       
+    End If
+   
+ 
+   
+   
+   
+End Sub
+ 
+ 
+Private Sub rotateRight()
+
+    If (running = False) Then
+        Exit Sub
+    End If
+ 
+    If (piece.Resize(1, 1).Column + piece.Rows.Count - 1 <= w And piece.Resize(1, 1).Row + piece.Columns.Count - 1 <= h) Then
+       
+       
+        For i = 1 To piece.Columns.Count
+            For j = 1 To piece.Rows.Count
+                If (piece2(j, i) = True) Then
+                    piece.Cells(j, i).Interior.ColorIndex = -4142
+                End If
+            Next j
+        Next i
+       
+        y = UBound(piece2, 1)
+        x = UBound(piece2, 2)
+       
+        topLeftX = piece.Resize(1, 1).Column
+        topLeftY = piece.Resize(1, 1).Row
+       
+       
+       
+       
+       
+        ReDim rotatedPiece(1 To x, 1 To y) As Boolean
+       
+        
+        For bottom = 1 To y
+            ReDim layer(1 To 1, 1 To x) As Boolean
+           
+            For a = x To 1 Step -1
+                layer(1, a) = piece2(bottom, a)
+                rotatedPiece(a, y - bottom + 1) = piece2(bottom, a)
+               
+            Next a
+        Next bottom
+       
+        flag = False
+        For a = 1 To y
+            For b = 1 To x
+                If (board.Cells(topLeftY, topLeftX).Offset(b - 1, a - 1).Interior.ColorIndex = 1) Then
+                    If (rotatedPiece(b, a) = True) Then
+                        flag = True
+                    End If
+                   
+                End If
+            Next b
+        Next a
+       
+       
+       
+       
+        If (flag = False) Then
+            piece2 = rotatedPiece
+            Set piece = piece.Resize(x, y)
+           
+           
+            For a = 1 To x
+                For b = 1 To y
+                    If (piece2(a, b) = True) Then
+                        piece.Cells(a, b).Interior.ColorIndex = 1
+                    End If
+                Next b
+            Next a
+        Else
+            For i = 1 To piece.Columns.Count
+                For j = 1 To piece.Rows.Count
+                    If (piece2(j, i) = True) Then
+                        piece.Cells(j, i).Interior.ColorIndex = 1
+                    End If
+                Next j
+            Next i
+        End If
+       
+       
+    End If
+       
+   
+End Sub
+ 
+Private Sub moveLeft()
+
+    If (running = False) Then
+        Exit Sub
+    End If
+    
+    r = piece.Resize(1, 1).Row
+    c = piece.Resize(1, 1).Column
+   
+    nextTopLeftX = piece.Resize(1, 1).Column - 1
+    nextTopLeftY = piece.Resize(1, 1).Row
+    pieceW = piece.Columns.Count
+    pieceH = piece.Rows.Count
+    flag = False
+   
+    For i = 1 To piece.Columns.Count
+        For j = 1 To piece.Rows.Count
+            If (piece2(j, i) = True) Then
+                piece.Cells(j, i).Interior.ColorIndex = -4142
+            End If
+        Next j
+    Next i
+   
+    If (nextTopLeftX = 0) Then
+        flag = True
+    Else
+    For i = 0 To pieceW - 1
+        For j = 0 To pieceH - 1
+            If (piece2(j + 1, i + 1) = True And Cells(nextTopLeftY, nextTopLeftX).Offset(j, i).Interior.ColorIndex = 1) Then
+                flag = True
+            End If
+        Next j
+    Next i
+    End If
+   
+   
+    If (flag = True) Then
+        For a = 1 To piece.Columns.Count
+            For b = 1 To piece.Rows.Count
+                If (piece2(b, a) = True) Then
+                    piece.Cells(b, a).Interior.ColorIndex = 1
+                End If
+            Next b
+        Next a
+    Else
+   
+    If (c > 1) Then
+   
+   
+        
+        For i = 1 To piece.Columns.Count
+            For j = 1 To piece.Rows.Count
+                If (piece2(j, i) = True) Then
+                    piece.Cells(j, i).Interior.ColorIndex = -4142
+                End If
+            Next j
+        Next i
+       
+       
+        Set piece = piece.Offset(0, -1)
+       
+        y = UBound(piece2, 1)
+        x = UBound(piece2, 2)
+       
+        For a = 1 To x
+            For b = 1 To y
+                If (piece2(b, a) = True) Then
+                    piece.Cells(b, a).Interior.ColorIndex = 1
+                   
+                End If
+            Next b
+        Next a
+    End If
+    End If
+   
+   
+   
+End Sub
+ 
+ 
+Private Sub moveDown()
+
+    If (running = False) Then
+        Exit Sub
+    End If
+    If (canMove = True) Then
+           
+        r = piece.Resize(1, 1).Row + piece.Rows.Count - 1
+       
+        nextTopLeftX = piece.Resize(1, 1).Column
+        nextTopLeftY = piece.Resize(1, 1).Row + 1
+        pieceW = piece.Columns.Count
+        pieceH = piece.Rows.Count
+        flag = False
+       
+        For i = 1 To piece.Columns.Count
+            For j = 1 To piece.Rows.Count
+                If (piece2(j, i) = True) Then
+                    piece.Cells(j, i).Interior.ColorIndex = -4142
+                End If
+            Next j
+        Next i
+       
+       
+        For i = 0 To pieceW - 1
+            For j = 0 To pieceH - 1
+                If (piece2(j + 1, i + 1) = True And Cells(nextTopLeftY, nextTopLeftX).Offset(j, i).Interior.ColorIndex = 1) Then
+                    flag = True
+                End If
+            Next j
+        Next i
+       
+        If (flag = True) Then
+            For a = 1 To piece.Columns.Count
+                For b = 1 To piece.Rows.Count
+                    If (piece2(b, a) = True) Then
+                        piece.Cells(b, a).Interior.ColorIndex = 1
+                    End If
+                Next b
+            Next a
+        Else
+           
+       
+            If (r >= h) Then
+           
+                For a = 1 To piece.Columns.Count
+                    For b = 1 To piece.Rows.Count
+                        If (piece2(b, a) = True) Then
+                            piece.Cells(b, a).Interior.ColorIndex = 1
+                        End If
+                    Next b
+                Next a
+            Else
+                StopTimer
+                StartTimer
+               
+                Set piece = piece.Offset(1, 0)
+               
+                y = UBound(piece2, 1)
+                x = UBound(piece2, 2)
+               
+                For a = 1 To x
+                    For b = 1 To y
+                        If (piece2(b, a) = True) Then
+                            piece.Cells(b, a).Interior.ColorIndex = 1
+                           
+                        End If
+                    Next b
+                Next a
+            End If
+        End If
+   
+    End If
+   
+   
+   
+End Sub
+ 
+
+ 
+Private Sub checkForLines()
+   
+    canMove = False
+   
+    For r = 1 To h
+        If (Range(Cells(r, 1), Cells(r, w)).Interior.ColorIndex = 1) Then
+            lineCounter.Value = lineCounter.Value + 1
+           
+            Range(Cells(r, 1), Cells(r, w)).Interior.ColorIndex = -4142
+            For a = r To 2 Step -1
+                For b = 1 To w
+                    Cells(a, b).Interior.ColorIndex = Cells(a - 1, b).Interior.ColorIndex
+                   
+                Next b
+            Next a
+           
+        End If
+       
+    Next r
+   
+    canMove = True
+   
+End Sub
+
+Sub setup()
+
+    Columns("A:J").ColumnWidth = 2
+    
+    Set board = Range(Cells(1, 1), Cells(h, w))
+    Set lineCounter = Cells(1, w + 5)
+   
+    Cells.Interior.ColorIndex = -4142
+    With board.Borders(xlEdgeBottom)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+    With board.Borders(xlEdgeRight)
+        .LineStyle = xlContinuous
+        .ColorIndex = 0
+        .TintAndShade = 0
+        .Weight = xlThin
+    End With
+   
+    lineCounter.Value = 0
+    
+    Application.OnKey "^t", "toggle"
+    Application.OnKey "^q", "rotateLeft"
+    Application.OnKey "^e", "rotateRight"
+   
+    Application.OnKey "^a", "moveLeft"
+    Application.OnKey "^d", "moveRight"
+    Application.OnKey "^s", "moveDown"
+   
+    Application.OnKey "^p", "pause"
+    Application.OnKey "^r", "reset"
+    
+    
+    Range("A1").Value = 0
+    Range("N1").Value = "Lines:"
+    
+    Range("T1:U1").Merge
+    Range("T1:U1").Value = "Controls"
+    Range("T1:U1").Font.Underline = xlUnderlineStyleSingle
+    
+    Columns("T:T").ColumnWidth = 20.86
+    Range("T2").Value = "Move Left"
+    Range("U2").Value = "Control+A"
+    Range("T3").Value = "Move Right"
+    Range("U3").Value = "Control+D"
+    Range("T4").Value = "Move Down"
+    Range("U4").Value = "Control+S"
+    Range("T5").Value = "Rotate Left"
+    Range("U5").Value = "Control+Q"
+    Range("T6").Value = "Rotate Right"
+    Range("U6").Value = "Control+E"
+    Range("T7").Value = "Pause"
+    Range("U7").Value = "Control+P"
+    Range("T8").Value = "Reset"
+    Range("U8").Value = "Control+R"
+    Range("T9").Value = "Start"
+    Range("U9").Value = "Control+T"
+
+
+End Sub
+
+
+
+
+
+
+
